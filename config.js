@@ -1,17 +1,33 @@
 // ─── CONFIG ─────────────────────────────────────────
-
 const config = {
   telegram: {
     token: process.env.TELEGRAM_BOT_TOKEN,
   },
+
   supabase: {
     url: process.env.SUPABASE_URL,
     anonKey: process.env.SUPABASE_ANON_KEY,
   },
+
+  fast: {
+    model: process.env.FAST_MODEL || "qwen/qwen3.5-122b-a10b",
+  },
+
+  thinker: {
+    model: process.env.THINKER_MODEL || "stepfun-ai/step-3.5-flash",
+  },
+
+  ai: {
+    timeoutMs: 15000,
+    maxRetries: 3,
+  },
+
+  memory: {
+    maxMessages: 20,
+  },
 };
 
 export default config;
-
 // ─── TELEGRAM API BASE ──────────────────────────────
 
 const API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
