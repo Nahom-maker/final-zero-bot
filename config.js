@@ -14,7 +14,7 @@ export default config;
 
 // ─── TELEGRAM API BASE ──────────────────────────────
 
-const API = `https://api.telegram.org/bot${config.telegram.token}`;
+const API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
 /**
  * Generic Telegram API caller with error handling + timeout safety
