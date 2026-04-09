@@ -27,6 +27,12 @@ const config = {
   },
 };
 
+const fastModel = config?.fast?.model ?? "llama-3.1-8b-instant";
+const thinkerModel = config?.thinker?.model ?? "llama-3.1-70b-versatile";
+console.log("FAST:", config.fast);
+console.log("THINKER:", config.thinker);
+console.log("CONFIG FULL:", config);
+
 export default config;
 // ─── TELEGRAM API BASE ──────────────────────────────
 
