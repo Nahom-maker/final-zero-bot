@@ -1,10 +1,4 @@
-// ─── Application Entry Point ─────────────────────────────────────────────────
-// Express server that receives Telegram webhook updates.
-// Registers the webhook on startup and handles graceful shutdown.
-
-// Load environment variables FIRST (before any config imports).
-console.log("TOKEN:", process.env.TELEGRAM_BOT_TOKEN?.slice(0,10));
-import 'dotenv/config.js';
+import 'dotenv/config.js'; // MUST be first
 
 import express from 'express';
 import config from './config.js';
@@ -12,8 +6,8 @@ import { getUpdates, setWebhook, deleteWebhook } from './telegram.js';
 import webhookRoute from './webhookRoute.js';
 import { handleUpdate } from './botController.js';
 
-const app = express();
-
+// NOW env is safe
+console.log("TOKEN:", process.env.TELEGRAM_BOT_TOKEN?.slice(0,10));
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 // Parse JSON bodies (Telegram sends JSON webhooks)
