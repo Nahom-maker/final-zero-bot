@@ -1,0 +1,20 @@
+{
+  "name": "zero-ai-telegram-bot",
+  "version": "1.0.0",
+  "description": "Production-grade Telegram AI chatbot with NVIDIA NIM API and Supabase",
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^17.4.1",
+    "express": "^4.21.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+# Leapcell deployment configuration
+# See: https://docs.leapcell.io
+
+name: zero-ai-bot
+region: us-east-1
+
+build:
+  dockerfile: Dockerfile
+
+service:
+  type: web
+  port: 3000
+  health_check:
+    path: /
+    interval: 30
+
+resources:
+  cpu: 0.5
+  memory: 512Mi
+
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "3000"
+  # All other env vars (TELEGRAM_BOT_TOKEN, API keys, etc.)
+  # must be set in the Leapcell dashboard under Environment Variables.
