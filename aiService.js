@@ -2,7 +2,7 @@
 // Handles communication with NVIDIA NIM API for both Fast and Thinker models.
 // Includes retry logic, timeout handling, and response extraction.
 
-import config from 'config.js';
+import config from './config.js';
 
 /**
  * Get the API configuration for a given mode.
