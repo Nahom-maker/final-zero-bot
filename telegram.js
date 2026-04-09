@@ -4,7 +4,7 @@
 
 import config from './config.js';
 
-const API = config.telegram.apiBase;
+const API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
 /**
  * Generic Telegram API caller with retry-safe error handling.
