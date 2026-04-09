@@ -1,3 +1,7 @@
+console.log("🔥 WEBHOOK HIT");
+console.log("BODY TYPE:", typeof req.body);
+console.log("BODY:", req.body);
+
 import { Router } from 'express';
 import { handleUpdate } from './botController.js';
 
