@@ -1,11 +1,17 @@
-// ─── Telegram API Helper ─────────────────────────────────────────────────────
-// Stable wrapper around Telegram Bot API using fetch
+// ─── CONFIG FILE ONLY ─────────────────────────────
 
-import config from './config.js';
+const config = {
+  telegram: {
+    token: process.env.TELEGRAM_BOT_TOKEN,
+  },
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    anonKey: process.env.SUPABASE_ANON_KEY,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  },
+};
 
-// Build API directly from token
-const API = `https://api.telegram.org/bot${config.telegram.token}`;
-
+export default config;
 /**
  * Generic Telegram API caller with error handling + timeout safety
  */
