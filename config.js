@@ -2,33 +2,54 @@
 // Stable wrapper around Telegram Bot API using fetch
 
 import config from './config.js';
+import fetch from 'node-fetch'; // ✅ FIX: ensure fetch exists in all runtimes
 
-// ✅ FIX: build API directly from token (no fragile apiBase)
+// Build API directly from token
 const API = `https://api.telegram.org/bot${config.telegram.token}`;
 
 /**
- * Generic Telegram API caller with error handling
+ * Generic Telegram API caller with error handling + timeout safety
  */
 async function callTelegram(method, body) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
   try {
     const res = await fetch(`${API}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: controller.signal, // ✅ FIX: prevent hanging requests
     });
+
+    clearTimeout(timeout);
 
     const data = await res.json();
 
     if (!data.ok) {
-      const err = new Error(`Telegram API error: ${data.description || 'Unknown'}`);
+      const err = new Error(
+        `Telegram API error: ${data.description || 'Unknown'}`
+      );
       err.telegramError = data;
       err.statusCode = res.status;
+
+      console.error("❌ Telegram API Error:", {
+        method,
+        error: data,
+      });
+
       throw err;
     }
 
     return data.result;
   } catch (error) {
-    console.error(`❌ Telegram call failed (${method}):`, error.message);
+    clearTimeout(timeout);
+
+    console.error(`❌ Telegram call failed (${method}):`, {
+      message: error.message,
+      telegram: error.telegramError || null,
+    });
+
     throw error;
   }
 }
@@ -39,7 +60,7 @@ export async function sendMessage(chatId, text, options = {}) {
   return callTelegram('sendMessage', {
     chat_id: chatId,
     text,
-    parse_mode: options.parseMode || 'MarkdownV2',
+    parse_mode: options.parseMode || 'HTML', // ✅ FIX: safer than MarkdownV2
     reply_markup: options.replyMarkup || undefined,
     disable_web_page_preview: true,
   });
@@ -55,24 +76,32 @@ export async function sendMessagePlain(chatId, text, options = {}) {
 }
 
 export async function editMessageText(chatId, messageId, text, options = {}) {
-  return callTelegram('editMessageText', {
-    chat_id: chatId,
-    message_id: messageId,
-    text,
-    parse_mode: options.parseMode || 'MarkdownV2',
-    reply_markup: options.replyMarkup || undefined,
-    disable_web_page_preview: true,
-  });
+  try {
+    return await callTelegram('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: options.parseMode || 'HTML',
+      reply_markup: options.replyMarkup || undefined,
+      disable_web_page_preview: true,
+    });
+  } catch (e) {
+    console.warn("⚠️ editMessageText failed, skipping:", e.message);
+  }
 }
 
 export async function editMessageTextPlain(chatId, messageId, text, options = {}) {
-  return callTelegram('editMessageText', {
-    chat_id: chatId,
-    message_id: messageId,
-    text,
-    reply_markup: options.replyMarkup || undefined,
-    disable_web_page_preview: true,
-  });
+  try {
+    return await callTelegram('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      reply_markup: options.replyMarkup || undefined,
+      disable_web_page_preview: true,
+    });
+  } catch (e) {
+    console.warn("⚠️ editMessageTextPlain failed, skipping:", e.message);
+  }
 }
 
 export async function answerCallbackQuery(callbackQueryId, text = '') {
