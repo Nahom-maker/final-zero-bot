@@ -1,59 +1,182 @@
-// ─── Environment Configuration ───────────────────────────────────────────────
-// Loads and validates all required environment variables at startup.
-// Crashes early with clear errors if anything is missing.
+// ─── Telegram API Helper ─────────────────────────────────────────────────────
+// Stable wrapper around Telegram Bot API using fetch
 
-const REQUIRED_VARS = [
-  'TELEGRAM_BOT_TOKEN',
-  'FAST_API_KEY',
-  'FAST_MODEL',
-  'THINKER_API_KEY',
-  'THINKER_MODEL',
-  'SUPABASE_URL',
-  'SUPABASE_ANON_KEY',
-];
+import config from './config.js';
 
-const missing = REQUIRED_VARS.filter((v) => !process.env[v]);
-if (missing.length > 0) {
-  console.error(`❌ Missing required environment variables:\n  ${missing.join('\n  ')}`);
-  process.exit(1);
+// ✅ FIX: build API directly from token (no fragile apiBase)
+const API = `https://api.telegram.org/bot${config.telegram.token}`;
+
+/**
+ * Generic Telegram API caller with error handling
+ */
+async function callTelegram(method, body) {
+  try {
+    const res = await fetch(`${API}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      const err = new Error(`Telegram API error: ${data.description || 'Unknown'}`);
+      err.telegramError = data;
+      err.statusCode = res.status;
+      throw err;
+    }
+
+    return data.result;
+  } catch (error) {
+    console.error(`❌ Telegram call failed (${method}):`, error.message);
+    throw error;
+  }
 }
 
-const config = Object.freeze({
-  telegram: {
-    token: process.env.TELEGRAM_BOT_TOKEN,
-    webhookUrl: process.env.WEBHOOK_URL,
-    apiBase: `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`,
-  },
-  fast: {
-    apiKey: process.env.FAST_API_KEY,
-    model: process.env.FAST_MODEL,
-  },
-  thinker: {
-    apiKey: process.env.THINKER_API_KEY,
-    model: process.env.THINKER_MODEL,
-  },
-  supabase: {
-    url: process.env.SUPABASE_URL,
-    anonKey: process.env.SUPABASE_ANON_KEY,
-  },
-  server: {
-    port: parseInt(process.env.PORT, 10) || 3001,
-  },
-  // Tuning constants
-  memory: {
-    maxMessages: 15,       // number of history messages to load
-    trimThreshold: 30,     // when total exceeds this, auto-trim oldest
-  },
-  pagination: {
-    chunkSize: 1000,       // target chars per page (soft limit)
-    minChunkSize: 400,     // never make a page smaller than this
-    maxChunkSize: 1500,    // hard cap per page
-  },
-  ai: {
-    timeoutMs: 90_000,     // 90 second timeout for AI requests
-    maxRetries: 2,         // retry count on failure
-    retryDelayMs: 1500,    // delay between retries
-  },
-});
+// ─── Message Sending ─────────────────────────────────────────────────────────
 
-export default config;
+export async function sendMessage(chatId, text, options = {}) {
+  return callTelegram('sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: options.parseMode || 'MarkdownV2',
+    reply_markup: options.replyMarkup || undefined,
+    disable_web_page_preview: true,
+  });
+}
+
+export async function sendMessagePlain(chatId, text, options = {}) {
+  return callTelegram('sendMessage', {
+    chat_id: chatId,
+    text,
+    reply_markup: options.replyMarkup || undefined,
+    disable_web_page_preview: true,
+  });
+}
+
+export async function editMessageText(chatId, messageId, text, options = {}) {
+  return callTelegram('editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: options.parseMode || 'MarkdownV2',
+    reply_markup: options.replyMarkup || undefined,
+    disable_web_page_preview: true,
+  });
+}
+
+export async function editMessageTextPlain(chatId, messageId, text, options = {}) {
+  return callTelegram('editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    reply_markup: options.replyMarkup || undefined,
+    disable_web_page_preview: true,
+  });
+}
+
+export async function answerCallbackQuery(callbackQueryId, text = '') {
+  return callTelegram('answerCallbackQuery', {
+    callback_query_id: callbackQueryId,
+    text,
+    show_alert: false,
+  });
+}
+
+export async function sendChatAction(chatId, action = 'typing') {
+  return callTelegram('sendChatAction', {
+    chat_id: chatId,
+    action,
+  });
+}
+
+export async function getFile(fileId) {
+  return callTelegram('getFile', { file_id: fileId });
+}
+
+export async function downloadFile(filePath) {
+  const url = `https://api.telegram.org/file/bot${config.telegram.token}/${filePath}`;
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Failed to download file: ${res.status}`);
+  }
+
+  return Buffer.from(await res.arrayBuffer());
+}
+
+// ─── Polling & Webhook Management ───────────────────────────────────────────
+
+export async function getUpdates(offset) {
+  return callTelegram('getUpdates', {
+    offset,
+    timeout: 30,
+    allowed_updates: ['message', 'callback_query'],
+  });
+}
+
+export async function setWebhook(url) {
+  return callTelegram('setWebhook', {
+    url,
+    allowed_updates: ['message', 'callback_query'],
+    drop_pending_updates: true,
+  });
+}
+
+export async function deleteWebhook() {
+  return callTelegram('deleteWebhook', {
+    drop_pending_updates: true,
+  });
+}
+
+// ─── Inline Keyboard Builders ────────────────────────────────────────────────
+
+export function buildModeKeyboard(currentMode) {
+  const fastLabel = currentMode === 'fast' ? '✅ ⚡ Fast' : '⚡ Fast';
+  const thinkerLabel = currentMode === 'thinker' ? '✅ 🧠 Thinker' : '🧠 Thinker';
+
+  return {
+    inline_keyboard: [
+      [
+        { text: fastLabel, callback_data: 'mode_fast' },
+        { text: thinkerLabel, callback_data: 'mode_thinker' },
+      ],
+      [
+        { text: '🗑️ Clear Memory', callback_data: 'clear_memory' },
+        { text: '🔄 Regenerate', callback_data: 'regenerate' },
+      ],
+    ],
+  };
+}
+
+export function buildPaginationKeyboard(currentPage, totalPages, currentMode) {
+  const navRow = [];
+
+  if (currentPage > 0) {
+    navRow.push({ text: '⬅️ Previous', callback_data: `page_prev_${currentPage}` });
+  }
+
+  navRow.push({ text: `${currentPage + 1}/${totalPages}`, callback_data: 'page_noop' });
+
+  if (currentPage < totalPages - 1) {
+    navRow.push({ text: 'Next ➡️', callback_data: `page_next_${currentPage}` });
+  }
+
+  const fastLabel = currentMode === 'fast' ? '✅ ⚡ Fast' : '⚡ Fast';
+  const thinkerLabel = currentMode === 'thinker' ? '✅ 🧠 Thinker' : '🧠 Thinker';
+
+  return {
+    inline_keyboard: [
+      navRow,
+      [
+        { text: fastLabel, callback_data: 'mode_fast' },
+        { text: thinkerLabel, callback_data: 'mode_thinker' },
+      ],
+      [
+        { text: '🗑️ Clear Memory', callback_data: 'clear_memory' },
+        { text: '🔄 Regenerate', callback_data: 'regenerate' },
+      ],
+    ],
+  };
+}
