@@ -1,3 +1,5 @@
+import 'dotenv/config.js';
+
 // ─── CONFIG ─────────────────────────────────────────
 const config = {
   telegram: {
@@ -27,20 +29,21 @@ const config = {
   },
 };
 
-const fastModel = config?.fast?.model ?? "llama-3.1-8b-instant";
-const thinkerModel = config?.thinker?.model ?? "llama-3.1-70b-versatile";
-console.log("FAST:", config.fast);
-console.log("THINKER:", config.thinker);
-console.log("CONFIG FULL:", config);
+// ─── SAFE DERIVED VALUES (use THESE instead of config.fast.model everywhere)
+export const FAST_MODEL =
+  config?.fast?.model ?? "qwen/qwen3.5-122b-a10b";
 
-export default config;
+export const THINKER_MODEL =
+  config?.thinker?.model ?? "stepfun-ai/step-3.5-flash";
+
+console.log("FAST:", FAST_MODEL);
+console.log("THINKER:", THINKER_MODEL);
+console.log("CONFIG OK");
+
 // ─── TELEGRAM API BASE ──────────────────────────────
+const API = `https://api.telegram.org/bot${config.telegram.token}`;
 
-const API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
-
-/**
- * Generic Telegram API caller with error handling + timeout safety
- */
+// ─── CORE CALLER ─────────────────────────────────────
 async function callTelegram(method, body) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
@@ -58,9 +61,7 @@ async function callTelegram(method, body) {
     const data = await res.json();
 
     if (!data.ok) {
-      const err = new Error(data.description || 'Telegram API error');
-      err.telegramError = data;
-      throw err;
+      throw new Error(data.description || 'Telegram API error');
     }
 
     return data.result;
@@ -72,7 +73,6 @@ async function callTelegram(method, body) {
 }
 
 // ─── MESSAGING ──────────────────────────────────────
-
 export async function sendMessage(chatId, text, options = {}) {
   return callTelegram('sendMessage', {
     chat_id: chatId,
@@ -122,6 +122,7 @@ export async function getFile(fileId) {
   return callTelegram('getFile', { file_id: fileId });
 }
 
+// ─── FIXED FILE DOWNLOAD (NO config dependency)
 export async function downloadFile(filePath) {
   const url = `https://api.telegram.org/file/bot${config.telegram.token}/${filePath}`;
 
@@ -135,7 +136,6 @@ export async function downloadFile(filePath) {
 }
 
 // ─── WEBHOOK ────────────────────────────────────────
-
 export async function setWebhook(url) {
   return callTelegram('setWebhook', {
     url,
@@ -149,8 +149,7 @@ export async function deleteWebhook() {
   });
 }
 
-// ─── KEYBOARD BUILDER ───────────────────────────────
-
+// ─── KEYBOARDS ──────────────────────────────────────
 export function buildModeKeyboard(currentMode) {
   return {
     inline_keyboard: [
@@ -205,3 +204,6 @@ export function buildPaginationKeyboard(currentPage, totalPages, currentMode) {
     ],
   };
 }
+
+// ─── EXPORT CONFIG LAST ─────────────────────────────
+export default config;
