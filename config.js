@@ -2,7 +2,6 @@
 // Stable wrapper around Telegram Bot API using fetch
 
 import config from './config.js';
-import fetch from 'node-fetch'; // ✅ FIX: ensure fetch exists in all runtimes
 
 // Build API directly from token
 const API = `https://api.telegram.org/bot${config.telegram.token}`;
