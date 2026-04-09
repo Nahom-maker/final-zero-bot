@@ -46,7 +46,7 @@ app.use((err, req, res, _next) => {
 
 // ─── Server Startup & Bot Initialization ─────────────────────────────────────
 
-const PORT = config.server.port;
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
   console.log(`\n🤖 Zero AI Bot Server running on port ${PORT}`);
