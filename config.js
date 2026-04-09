@@ -1,4 +1,4 @@
-// ─── CONFIG FILE ONLY ─────────────────────────────
+// ─── CONFIG ─────────────────────────────────────────
 
 const config = {
   telegram: {
@@ -11,6 +11,11 @@ const config = {
 };
 
 export default config;
+
+// ─── TELEGRAM API BASE ──────────────────────────────
+
+const API = `https://api.telegram.org/bot${config.telegram.token}`;
+
 /**
  * Generic Telegram API caller with error handling + timeout safety
  */
@@ -23,7 +28,7 @@ async function callTelegram(method, body) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: controller.signal, // ✅ FIX: prevent hanging requests
+      signal: controller.signal,
     });
 
     clearTimeout(timeout);
@@ -31,41 +36,27 @@ async function callTelegram(method, body) {
     const data = await res.json();
 
     if (!data.ok) {
-      const err = new Error(
-        `Telegram API error: ${data.description || 'Unknown'}`
-      );
+      const err = new Error(data.description || 'Telegram API error');
       err.telegramError = data;
-      err.statusCode = res.status;
-
-      console.error("❌ Telegram API Error:", {
-        method,
-        error: data,
-      });
-
       throw err;
     }
 
     return data.result;
   } catch (error) {
     clearTimeout(timeout);
-
-    console.error(`❌ Telegram call failed (${method}):`, {
-      message: error.message,
-      telegram: error.telegramError || null,
-    });
-
+    console.error(`❌ Telegram call failed (${method}):`, error.message);
     throw error;
   }
 }
 
-// ─── Message Sending ─────────────────────────────────────────────────────────
+// ─── MESSAGING ──────────────────────────────────────
 
 export async function sendMessage(chatId, text, options = {}) {
   return callTelegram('sendMessage', {
     chat_id: chatId,
     text,
-    parse_mode: options.parseMode || 'HTML', // ✅ FIX: safer than MarkdownV2
-    reply_markup: options.replyMarkup || undefined,
+    parse_mode: options.parseMode || 'HTML',
+    reply_markup: options.replyMarkup,
     disable_web_page_preview: true,
   });
 }
@@ -74,38 +65,20 @@ export async function sendMessagePlain(chatId, text, options = {}) {
   return callTelegram('sendMessage', {
     chat_id: chatId,
     text,
-    reply_markup: options.replyMarkup || undefined,
+    reply_markup: options.replyMarkup,
     disable_web_page_preview: true,
   });
 }
 
 export async function editMessageText(chatId, messageId, text, options = {}) {
-  try {
-    return await callTelegram('editMessageText', {
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      parse_mode: options.parseMode || 'HTML',
-      reply_markup: options.replyMarkup || undefined,
-      disable_web_page_preview: true,
-    });
-  } catch (e) {
-    console.warn("⚠️ editMessageText failed, skipping:", e.message);
-  }
-}
-
-export async function editMessageTextPlain(chatId, messageId, text, options = {}) {
-  try {
-    return await callTelegram('editMessageText', {
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      reply_markup: options.replyMarkup || undefined,
-      disable_web_page_preview: true,
-    });
-  } catch (e) {
-    console.warn("⚠️ editMessageTextPlain failed, skipping:", e.message);
-  }
+  return callTelegram('editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: options.parseMode || 'HTML',
+    reply_markup: options.replyMarkup,
+    disable_web_page_preview: true,
+  });
 }
 
 export async function answerCallbackQuery(callbackQueryId, text = '') {
@@ -139,21 +112,12 @@ export async function downloadFile(filePath) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// ─── Polling & Webhook Management ───────────────────────────────────────────
-
-export async function getUpdates(offset) {
-  return callTelegram('getUpdates', {
-    offset,
-    timeout: 30,
-    allowed_updates: ['message', 'callback_query'],
-  });
-}
+// ─── WEBHOOK ────────────────────────────────────────
 
 export async function setWebhook(url) {
   return callTelegram('setWebhook', {
     url,
     allowed_updates: ['message', 'callback_query'],
-    drop_pending_updates: true,
   });
 }
 
@@ -163,17 +127,20 @@ export async function deleteWebhook() {
   });
 }
 
-// ─── Inline Keyboard Builders ────────────────────────────────────────────────
+// ─── KEYBOARD BUILDER ───────────────────────────────
 
 export function buildModeKeyboard(currentMode) {
-  const fastLabel = currentMode === 'fast' ? '✅ ⚡ Fast' : '⚡ Fast';
-  const thinkerLabel = currentMode === 'thinker' ? '✅ 🧠 Thinker' : '🧠 Thinker';
-
   return {
     inline_keyboard: [
       [
-        { text: fastLabel, callback_data: 'mode_fast' },
-        { text: thinkerLabel, callback_data: 'mode_thinker' },
+        {
+          text: currentMode === 'fast' ? '✅ ⚡ Fast' : '⚡ Fast',
+          callback_data: 'mode_fast',
+        },
+        {
+          text: currentMode === 'thinker' ? '✅ 🧠 Thinker' : '🧠 Thinker',
+          callback_data: 'mode_thinker',
+        },
       ],
       [
         { text: '🗑️ Clear Memory', callback_data: 'clear_memory' },
@@ -196,15 +163,18 @@ export function buildPaginationKeyboard(currentPage, totalPages, currentMode) {
     navRow.push({ text: 'Next ➡️', callback_data: `page_next_${currentPage}` });
   }
 
-  const fastLabel = currentMode === 'fast' ? '✅ ⚡ Fast' : '⚡ Fast';
-  const thinkerLabel = currentMode === 'thinker' ? '✅ 🧠 Thinker' : '🧠 Thinker';
-
   return {
     inline_keyboard: [
       navRow,
       [
-        { text: fastLabel, callback_data: 'mode_fast' },
-        { text: thinkerLabel, callback_data: 'mode_thinker' },
+        {
+          text: currentMode === 'fast' ? '✅ ⚡ Fast' : '⚡ Fast',
+          callback_data: 'mode_fast',
+        },
+        {
+          text: currentMode === 'thinker' ? '✅ 🧠 Thinker' : '🧠 Thinker',
+          callback_data: 'mode_thinker',
+        },
       ],
       [
         { text: '🗑️ Clear Memory', callback_data: 'clear_memory' },
