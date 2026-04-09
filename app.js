@@ -3,6 +3,7 @@
 // Registers the webhook on startup and handles graceful shutdown.
 
 // Load environment variables FIRST (before any config imports).
+console.log("TOKEN:", process.env.TELEGRAM_BOT_TOKEN?.slice(0,10));
 import 'dotenv/config.js';
 
 import express from 'express';
