@@ -6,6 +6,10 @@ import { getUpdates, setWebhook, deleteWebhook } from './telegram.js';
 import webhookRoute from './webhookRoute.js';
 import { handleUpdate } from './botController.js';
 
+const app = express(); // 🔥 MUST EXIST FIRST
+
+app.use(express.json()); // ✅ now safe
+
 // NOW env is safe
 console.log("TOKEN:", process.env.TELEGRAM_BOT_TOKEN?.slice(0,10));
 // ─── Middleware ───────────────────────────────────────────────────────────────
